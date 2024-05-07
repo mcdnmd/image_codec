@@ -4,7 +4,6 @@ from pathlib import Path
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-from config import ROOT_DIR
 
 
 class ImageDataset(Dataset):

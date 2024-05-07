@@ -4,3 +4,7 @@ build_cpp:
 
 start:
 	@poetry run python3 -m solution
+
+
+test:
+	@poetry run pytest -vvv tests

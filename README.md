@@ -52,3 +52,9 @@ from EntropyCodec import HiddenLayersEncoder, HiddenLayersDecoder
 ```shell
 make start
 ```
+
+## Проверка изменений в коде
+Запуск тестов
+```shell
+make test
+```
