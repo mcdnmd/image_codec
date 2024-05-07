@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "image-codec"
+version = "0.1.0"
+description = ""
+authors = ["mcdnmd"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+torch = "^2.3.0"
+pillow = "^10.3.0"
+pytest = "^8.2.0"
+torchvision = "^0.18.0"
+numpy = "^1.26.4"
+pybind11 = "^2.12.0"
+setuptools = "^69.5.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
