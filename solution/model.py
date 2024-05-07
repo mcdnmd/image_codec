@@ -43,3 +43,16 @@ class Decoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.layers(x)
         return x
+
+
+class AutoEncoder(nn.Module):
+    def __init__(self):
+        super(AutoEncoder, self).__init__()
+
+        self.encoder = Encoder()
+        self.decoder = Decoder()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
