@@ -1,5 +1,5 @@
 build_cpp:
-	@CFLAGS='-std=c++11' python3 EntropySetup.py build_ext --inplace
+	@CFLAGS='-std=c++11' python3 ./solution/entropy_codec/EntropySetup.py build_ext --inplace
 
 
 start:

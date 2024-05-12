@@ -44,8 +44,9 @@ __bootstrap__()
 ```
 
 Так же для упрощения импорта в файле есть сигнатуры методов из собранных исходников чтобы можно было делать конкретный импорт и линтер не ругался
+
 ```py
-from EntropyCodec import HiddenLayersEncoder, HiddenLayersDecoder
+from solution.entropy_codec.EntropyCodec import HiddenLayersEncoder, HiddenLayersDecoder
 ```
 
 Запуск кода

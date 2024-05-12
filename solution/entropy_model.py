@@ -1,6 +1,6 @@
 import numpy as np
 
-from EntropyCodec import HiddenLayersEncoder, HiddenLayersDecoder
+from solution.entropy_codec.EntropyCodec import HiddenLayersEncoder, HiddenLayersDecoder
 
 
 def entropy_encoder(image, size_z: int, size_h: int, size_w: int):

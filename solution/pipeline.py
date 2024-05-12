@@ -1,71 +1,59 @@
 import torch
-import numpy as np
+from loguru import logger
 
-from torch import nn
+from torch import nn, optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import config
-from CNNImageCodec import EntropyEncoder, EntropyDecoder
+from solution import config
 from solution.dataset_loader import ImageDataset, image_transform
+from solution.utils import display_images_and_save_pdf, process_images
 
 
-def pipeline(model: nn.Module, device: str, b, w, h):
-    print("Start pipeline")
+def is_val_epoch(epoch_num: int) -> bool:
+    return (epoch_num + 1) % config.VAL_EPOCH_EACH_STEP == 0
+
+
+def training_pipeline(model: nn.Module, device: str, b: int, w: int, h: int):
+    logger.info("Start training pipeline")
+    train_dataset = ImageDataset(config.DATASET_DIR / "train", image_transform)
+    train_dataloader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+
     test_dataset = ImageDataset(config.DATASET_DIR / "test", image_transform)
     test_dataloader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
 
-    imgs_encoded = []
-    imgs_decoded = []
+    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
 
-    with torch.no_grad():
-        for test_batch in tqdm(test_dataloader):
-            test_batch = test_batch.to(device)
-            encoded_images = model.encoder(test_batch)
-            decoded_images = model.decoder(encoded_images)
+    for epoch in tqdm(range(config.EPOCHS)):
+        model.train()
 
-            imgs_encoded.append(encoded_images.cpu().detach())
-            imgs_decoded.append(decoded_images.cpu().detach())
+        for step, train_batch in enumerate(train_dataloader):
+            train_batch = train_batch.to(device)
 
-    imgs_encoded = torch.vstack(imgs_encoded)
-    imgs_decoded = torch.vstack(imgs_decoded)
+            optimizer.zero_grad()
 
-    # Normalize and quantize
-    max_encoded_imgs = imgs_encoded.amax(dim=1, keepdim=True)
-    norm_imgs_encoded = imgs_encoded / max_encoded_imgs
-    quantized_imgs_encoded = (torch.clip(norm_imgs_encoded, 0, 0.9999999) * pow(2, b)).to(
-        torch.int32
-    )
-    quantized_imgs_encoded = quantized_imgs_encoded.numpy()
+            outputs = model(train_batch)
+            loss = nn.MSELoss()(outputs, train_batch)
 
-    # Encode and decode using entropy coding
-    quantized_imgs_decoded = []
-    bpp = []
+            loss.backward()
+            optimizer.step()
 
-    for i in range(quantized_imgs_encoded.shape[0]):
-        size_z, size_h, size_w = quantized_imgs_encoded[i].shape
-        encoded_bits = EntropyEncoder(quantized_imgs_encoded[i], size_z, size_h, size_w)
-        byte_size = len(encoded_bits)
-        bpp.append(byte_size * 8 / (w * h))
-        quantized_imgs_decoded.append(EntropyDecoder(encoded_bits, size_z, size_h, size_w))
-    quantized_imgs_decoded = torch.tensor(np.array(quantized_imgs_decoded, dtype=np.uint8))
+            # metrics_loger.log({'train loss': loss, "epoch": epoch})
 
-    shift = 1.0 / pow(2, b + 1)
-    dequantized_imgs_decoded = (quantized_imgs_decoded.to(torch.float32) / pow(2, b)) + shift
-    dequantized_denorm_imgs_decoded = dequantized_imgs_decoded * max_encoded_imgs
-
-    imgsQ_decoded = []
-
-    with torch.no_grad():
-        for deq_img in dequantized_denorm_imgs_decoded:
-            deq_img = deq_img.to(device)
-            decoded_imgQ = model.decoder(deq_img)
-
-            imgsQ_decoded.append(decoded_imgQ.cpu().detach())
-
-    imgsQ_decoded = torch.stack(imgsQ_decoded)
-
-    assert imgsQ_decoded.shape == imgs_decoded.shape
-    assert imgsQ_decoded.shape[0] == len(bpp)
-
-    return imgs_decoded, imgsQ_decoded, bpp
+        if is_val_epoch(epoch):
+            logger.info("Start val epoch on %s" % epoch)
+            model.eval()
+            val_loss = 0.0
+            with torch.no_grad():
+                for val_batch in tqdm(test_dataloader):
+                    val_batch = val_batch.to(device)
+                    val_outputs = model(val_batch)
+                    val_loss += nn.MSELoss()(val_outputs, val_batch).item()
+            val_loss /= len(test_dataloader)
+            imgs_decoded, imgsQ_decoded, bpp = process_images(
+                model, test_dataloader, device, 1, 128, 128
+            )
+            fig, psnr_decoded, psnr_decoded_q, _ = display_images_and_save_pdf(
+                test_dataset, imgs_decoded, imgsQ_decoded, bpp, 'output.pdf'
+            )
+    logger.info("Training pipeline completed")

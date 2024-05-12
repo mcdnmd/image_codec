@@ -13,7 +13,7 @@ from tensorflow.keras.models import Model
 from keras import backend as K
 
 # import C-implementation of Witten&Neal&Cleary-1987 arithmetic coding as a external module
-from EntropyCodec import *
+from solution.entropy_codec.EntropyCodec import *
 
 # source folder with test images
 testfolder = './test/'
@@ -148,7 +148,7 @@ def EntropyEncoder(filename, enclayers, size_z, size_h, size_w):
     StreamSize = numpy.zeros(1, numpy.int32, 'C')
     HiddenLayersEncoder(temp, size_w, size_h, size_z, bitstream, StreamSize)
     name = filename
-    path = './'
+    path = '../../'
     fp = open(os.path.join(path, name), 'wb')
     out = bitstream[0:StreamSize[0]]
     out.astype('uint8').tofile(fp)
