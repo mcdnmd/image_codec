@@ -28,7 +28,9 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         self.layers = nn.Sequential(
-            nn.ConvTranspose2d(16, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(
+                16, 32, kernel_size=3, stride=2, padding=1, output_padding=1
+            ),
             nn.ReLU(),
             nn.ConvTranspose2d(
                 32, 128, kernel_size=5, stride=2, padding=2, output_padding=1
@@ -46,13 +48,19 @@ class Decoder(nn.Module):
 
 
 class AutoEncoder(nn.Module):
+    """Baseline model"""
+
     def __init__(self):
         super(AutoEncoder, self).__init__()
 
         self.encoder = Encoder()
         self.decoder = Decoder()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, b_t: int | None = None) -> torch.Tensor:
         x = self.encoder(x)
+        if self.training and b_t is not None:
+            max_val = x.max() / (2 ** (b_t + 1))
+            noise = torch.rand_like(x) * max_val
+            x = x + noise
         x = self.decoder(x)
         return x

@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from loguru import logger
 
@@ -14,15 +15,21 @@ def is_val_epoch(epoch_num: int) -> bool:
     return (epoch_num + 1) % config.VAL_EPOCH_EACH_STEP == 0
 
 
-def training_pipeline(model: nn.Module, device: str, b: int, w: int, h: int):
+def training_pipeline(model: nn.Module, device: str, run, b: int, w: int, h: int):
     logger.info("Start training pipeline")
     train_dataset = ImageDataset(config.DATASET_DIR / "train", image_transform)
-    train_dataloader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=config.BATCH_SIZE, shuffle=True
+    )
 
     test_dataset = ImageDataset(config.DATASET_DIR / "test", image_transform)
-    test_dataloader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+    test_dataloader = DataLoader(
+        test_dataset, batch_size=config.BATCH_SIZE, shuffle=True
+    )
 
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+
+    global_step_counter = 0
 
     for epoch in tqdm(range(config.EPOCHS)):
         model.train()
@@ -32,13 +39,18 @@ def training_pipeline(model: nn.Module, device: str, b: int, w: int, h: int):
 
             optimizer.zero_grad()
 
-            outputs = model(train_batch)
+            outputs = model(train_batch, b_t=b)
             loss = nn.MSELoss()(outputs, train_batch)
 
             loss.backward()
             optimizer.step()
 
-            # metrics_loger.log({'train loss': loss, "epoch": epoch})
+            run.log(
+                {"train loss": loss, "epoch": epoch, "step": global_step_counter},
+                step=global_step_counter,
+            )
+
+            global_step_counter += 1
 
         if is_val_epoch(epoch):
             logger.info("Start val epoch on %s" % epoch)
@@ -47,13 +59,29 @@ def training_pipeline(model: nn.Module, device: str, b: int, w: int, h: int):
             with torch.no_grad():
                 for val_batch in tqdm(test_dataloader):
                     val_batch = val_batch.to(device)
-                    val_outputs = model(val_batch)
+                    val_outputs = model(val_batch, b_t=b)
                     val_loss += nn.MSELoss()(val_outputs, val_batch).item()
+
             val_loss /= len(test_dataloader)
+
             imgs_decoded, imgsQ_decoded, bpp = process_images(
-                model, test_dataloader, device, 1, 128, 128
+                model, test_dataloader, device, b, w, h
             )
             fig, psnr_decoded, psnr_decoded_q, _ = display_images_and_save_pdf(
-                test_dataset, imgs_decoded, imgsQ_decoded, bpp, 'output.pdf'
+                test_dataset, imgs_decoded, imgsQ_decoded, bpp, "output.pdf"
             )
+
+            run.log(
+                {
+                    "val loss": val_loss,
+                    "val pick": fig,
+                    "val psnr ae": psnr_decoded,
+                    "val psnr_ae_q": psnr_decoded_q,
+                    "val bpp": np.mean(bpp),
+                    "epoch": epoch,
+                    "step": global_step_counter,
+                },
+                step=global_step_counter,
+            )
+
     logger.info("Training pipeline completed")

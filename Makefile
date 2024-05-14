@@ -3,8 +3,18 @@ build_cpp:
 
 
 start:
-	@poetry run python3 -m solution
+	@poetry run python3 -m solution $(ARGS)
+
+start_base:
+	@poetry run python3 -m solution base
 
 
 test:
 	@poetry run pytest -vvv tests
+
+
+lint:
+	@ruff check solution tests
+
+format:
+	@ruff r solution tests

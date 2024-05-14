@@ -9,8 +9,9 @@ from torchvision import transforms
 class ImageDataset(Dataset):
     def __init__(self, absolute_dataset_path: Path, transform=None) -> None:
         self.files_paths = [
-            absolute_dataset_path / f for f in os.listdir(absolute_dataset_path) if
-            f.endswith(('.png', '.jpg', '.jpeg'))
+            absolute_dataset_path / f
+            for f in os.listdir(absolute_dataset_path)
+            if f.endswith((".png", ".jpg", ".jpeg"))
         ]
         self.transform = transform
 
@@ -18,13 +19,12 @@ class ImageDataset(Dataset):
         return len(self.files_paths)
 
     def __getitem__(self, index):
-        img = Image.open(self.files_paths[index]).convert('RGB')
+        img = Image.open(self.files_paths[index]).convert("RGB")
         if self.transform:
             img = self.transform(img)
         return img
 
 
-image_transform = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor()
-])
+image_transform = transforms.Compose(
+    [transforms.Resize((128, 128)), transforms.ToTensor()]
+)

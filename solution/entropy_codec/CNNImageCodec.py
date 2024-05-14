@@ -7,18 +7,18 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import imghdr
 import tensorflow
-from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.keras.models import Model
+from tensorflow.python import keras
+from tensorflow.python.keras import layers
+from tensorflow.python.keras.models import Model
 from keras import backend as K
 
 # import C-implementation of Witten&Neal&Cleary-1987 arithmetic coding as a external module
 from solution.entropy_codec.EntropyCodec import *
 
 # source folder with test images
-testfolder = './test/'
+testfolder = "../../dataset/test/"
 # source folder with train images
-trainfolder = './train/'
+trainfolder = "../../dataset/train/"
 # size of test and train images
 w = 128
 h = 128
@@ -52,7 +52,7 @@ def PSNR_RGB(image1, image2):
     I1 = I1.astype(float)
     I2 = I2.astype(float)
     mse = numpy.mean((I1 - I2) ** 2)
-    if (mse == 0):  # MSE is zero means no noise is present in the signal .
+    if mse == 0:  # MSE is zero means no noise is present in the signal .
         psnr = 100.0
     else:
         max_pixel = 255.0
@@ -64,7 +64,11 @@ def PSNR_RGB(image1, image2):
 # Compute PSNR between two vectors
 def PSNR(y_true, y_pred):
     max_pixel = 1.0
-    return 10.0 * (1.0 / math.log(10)) * K.log((max_pixel ** 2) / (K.mean(K.square(y_pred - y_true))))
+    return (
+        10.0
+        * (1.0 / math.log(10))
+        * K.log((max_pixel**2) / (K.mean(K.square(y_pred - y_true))))
+    )
 
 
 # reads all images from folder and puts them into x array
@@ -76,7 +80,7 @@ def LoadImagesFromFolder(foldername):
         fullname = foldername + name
         filetype = imghdr.what(fullname)
         if filetype is None:
-            print('')
+            print("")
         else:
             Nmax = Nmax + 1
 
@@ -86,9 +90,9 @@ def LoadImagesFromFolder(foldername):
         fullname = foldername + name
         filetype = imghdr.what(fullname)
         if filetype is None:
-            print('Unknown image format for file: ', name)
+            print("Unknown image format for file: ", name)
         else:
-            print('Progress: N = %i' % N)
+            print("Progress: N = %i" % N)
             image = Image.open(fullname)
             I1 = numpy.array(image.getdata()).reshape(image.size[0], image.size[1], 3)
             x[N, :, :, :] = I1
@@ -107,62 +111,72 @@ def ImageCodecModel(trainfolder):
     e3 = layers.Conv2D(n3, (3, 3), activation="relu", padding="same")(e2)
     e3 = layers.MaxPooling2D((2, 2), padding="same")(e3)
     # add noise during training (needed for layer quantinzation)
-    e3 = e3 + tensorflow.random.uniform(tensorflow.shape(e3), 0, tensorflow.math.reduce_max(e3) / pow(2, bt + 1))
+    e3 = e3 + tensorflow.random.uniform(
+        tensorflow.shape(e3), 0, tensorflow.math.reduce_max(e3) / pow(2, bt + 1)
+    )
 
     # Decoder
-    x = layers.Conv2DTranspose(n3, (3, 3), strides=2, activation="relu", padding="same")(e3)
-    x = layers.Conv2DTranspose(n2, (5, 5), strides=2, activation="relu", padding="same")(x)
-    x = layers.Conv2DTranspose(n1, (7, 7), strides=2, activation="relu", padding="same")(x)
+    x = layers.Conv2DTranspose(
+        n3, (3, 3), strides=2, activation="relu", padding="same"
+    )(e3)
+    x = layers.Conv2DTranspose(
+        n2, (5, 5), strides=2, activation="relu", padding="same"
+    )(x)
+    x = layers.Conv2DTranspose(
+        n1, (7, 7), strides=2, activation="relu", padding="same"
+    )(x)
     x = layers.Conv2D(3, (3, 3), activation="sigmoid", padding="same")(x)
 
     # Autoencoder
     encoder = Model(input, e3)
     decoder = Model(e3, x)
     autoencoder = Model(input, x)
-    autoencoder.compile(optimizer="adam", loss='mean_squared_error')
+    autoencoder.compile(optimizer="adam", loss="mean_squared_error")
     autoencoder.summary()
 
     if LoadModel == 0:
         xtrain = LoadImagesFromFolder(trainfolder)
         xtrain = xtrain / 255
-        autoencoder.fit(xtrain, xtrain, epochs=epochs, batch_size=batch_size, shuffle=True)
-        autoencoder.save('autoencodertemp.mdl')
-        encoder.save('encoder.mdl')
-        decoder.save('decoder.mdl')
+        autoencoder.fit(
+            xtrain, xtrain, epochs=epochs, batch_size=batch_size, shuffle=True
+        )
+        autoencoder.save("autoencodertemp.mdl")
+        encoder.save("encoder.mdl")
+        decoder.save("decoder.mdl")
     else:
-        autoencoder = keras.models.load_model('autoencodertemp.mdl')
-        encoder = keras.models.load_model('encoder.mdl')
-        decoder = keras.models.load_model('decoder.mdl')
+        autoencoder = keras.models.load_model("autoencodertemp.mdl")
+        encoder = keras.models.load_model("encoder.mdl")
+        decoder = keras.models.load_model("decoder.mdl")
     return encoder, decoder
 
 
 # Compresses input layer by multi-alphabet arithmetic coding using memoryless source model
 def EntropyEncoder(filename, enclayers, size_z, size_h, size_w):
-    temp = numpy.zeros((size_z, size_h, size_w), numpy.uint8, 'C')
+    temp = numpy.zeros((size_z, size_h, size_w), numpy.uint8, "C")
     for z in range(size_z):
         for h in range(size_h):
             for w in range(size_w):
                 temp[z][h][w] = enclayers[z][h][w]
-    maxbinsize = (size_h * size_w * size_z)
-    bitstream = numpy.zeros(maxbinsize, numpy.uint8, 'C')
-    StreamSize = numpy.zeros(1, numpy.int32, 'C')
+    maxbinsize = size_h * size_w * size_z
+    bitstream = numpy.zeros(maxbinsize, numpy.uint8, "C")
+    StreamSize = numpy.zeros(1, numpy.int32, "C")
     HiddenLayersEncoder(temp, size_w, size_h, size_z, bitstream, StreamSize)
     name = filename
-    path = '../../'
-    fp = open(os.path.join(path, name), 'wb')
-    out = bitstream[0:StreamSize[0]]
-    out.astype('uint8').tofile(fp)
+    path = "../../"
+    fp = open(os.path.join(path, name), "wb")
+    out = bitstream[0 : StreamSize[0]]
+    out.astype("uint8").tofile(fp)
     fp.close()
 
 
 # Decompresses input layer by multi-alphabet arithmetic coding using memoryless source model
 def EntropyDecoder(filename, size_z, size_h, size_w):
-    fp = open(filename, 'rb')
+    fp = open(filename, "rb")
     bitstream = fp.read()
     fp.close()
     bitstream = numpy.frombuffer(bitstream, dtype=numpy.uint8)
-    declayers = numpy.zeros((size_z, size_h, size_w), numpy.uint8, 'C')
-    FrameOffset = numpy.zeros(1, numpy.int32, 'C')
+    declayers = numpy.zeros((size_z, size_h, size_w), numpy.uint8, "C")
+    FrameOffset = numpy.zeros(1, numpy.int32, "C")
     FrameOffset[0] = 0
     HiddenLayersDecoder(declayers, size_w, size_h, size_z, bitstream, FrameOffset)
     return declayers
@@ -172,28 +186,28 @@ def EntropyDecoder(filename, size_z, size_h, size_w):
 # which provides neares compression to TargetBPP
 def JPEGRDSingleImage(X, TargetBPP, i):
     X = X * 255
-    image = Image.fromarray(X.astype('uint8'), 'RGB')
+    image = Image.fromarray(X.astype("uint8"), "RGB")
     width, height = image.size
     realbpp = 0
     realpsnr = 0
     realQ = 0
     for Q in range(101):
-        image.save('test.jpeg', "JPEG", quality=Q)
-        image_dec = Image.open('test.jpeg')
-        bytesize = os.path.getsize('test.jpeg')
+        image.save("test.jpeg", "JPEG", quality=Q)
+        image_dec = Image.open("test.jpeg")
+        bytesize = os.path.getsize("test.jpeg")
         bpp = bytesize * 8 / (width * height)
         psnr = PSNR_RGB(image, image_dec)
         if abs(realbpp - TargetBPP) > abs(bpp - TargetBPP):
             realbpp = bpp
             realpsnr = psnr
             realQ = Q
-    JPEGfilename = 'image%i.jpeg' % i
+    JPEGfilename = "image%i.jpeg" % i
     image.save(JPEGfilename, "JPEG", quality=realQ)
     return realQ, realbpp, realpsnr
 
 
 # Main function
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Load test images
     xtest = LoadImagesFromFolder(testfolder)
     xtest = xtest / 255
@@ -203,7 +217,7 @@ if __name__ == '__main__':
 
     # Run the model for first NumImagesToShow images from the test set
     encoded_layers = encoder.predict(xtest, batch_size=NumImagesToShow)
-    max_encoded_layers = numpy.zeros(NumImagesToShow, numpy.float16, 'C')
+    max_encoded_layers = numpy.zeros(NumImagesToShow, numpy.float16, "C")
 
     # normalization the layer to interval [0,1)
     for i in range(NumImagesToShow):
@@ -215,10 +229,10 @@ if __name__ == '__main__':
     encoded_layers1 = K.cast(encoded_layers1 * pow(2, b), "int32")
 
     # Encoding and decoding of each quantized layer by arithmetic coding
-    bpp = numpy.zeros(NumImagesToShow, numpy.float16, 'C')
-    declayers = numpy.zeros((NumImagesToShow, 16, 16, 16), numpy.uint8, 'C')
+    bpp = numpy.zeros(NumImagesToShow, numpy.float16, "C")
+    declayers = numpy.zeros((NumImagesToShow, 16, 16, 16), numpy.uint8, "C")
     for i in range(NumImagesToShow):
-        binfilename = 'image%i.bin' % i
+        binfilename = "image%i.bin" % i
         EntropyEncoder(binfilename, encoded_layers1[i], 16, 16, 16)
         bytesize = os.path.getsize(binfilename)
         bpp[i] = bytesize * 8 / (w * h)
@@ -229,12 +243,18 @@ if __name__ == '__main__':
     shift = 1.0 / pow(2, b + 1)
     declayers = K.cast(declayers, "float32") / pow(2, b)
     declayers = declayers + shift
-    encoded_layers_quantized = numpy.zeros((NumImagesToShow, 16, 16, 16), numpy.double, 'C')
+    encoded_layers_quantized = numpy.zeros(
+        (NumImagesToShow, 16, 16, 16), numpy.double, "C"
+    )
     for i in range(NumImagesToShow):
-        encoded_layers_quantized[i] = K.cast(declayers[i] * max_encoded_layers[i], "float32")
+        encoded_layers_quantized[i] = K.cast(
+            declayers[i] * max_encoded_layers[i], "float32"
+        )
         encoded_layers[i] = K.cast(encoded_layers[i] * max_encoded_layers[i], "float32")
     decoded_imgs = decoder.predict(encoded_layers, batch_size=NumImagesToShow)
-    decoded_imgsQ = decoder.predict(encoded_layers_quantized, batch_size=NumImagesToShow)
+    decoded_imgsQ = decoder.predict(
+        encoded_layers_quantized, batch_size=NumImagesToShow
+    )
 
     # Shows NumImagesToShow images from the test set
     # For each image the following results are presented
@@ -243,28 +263,36 @@ if __name__ == '__main__':
     # Image, represented by the model with quantization and compression of the layers samples
     # Corresponding JPEG image at the same compression level
     for i in range(NumImagesToShow):
-        title = ''
+        title = ""
         plt.subplot(4, NumImagesToShow, i + 1).set_title(title, fontsize=10)
-        plt.imshow(xtest[i, :, :, :], interpolation='nearest')
+        plt.imshow(xtest[i, :, :, :], interpolation="nearest")
         plt.axis(False)
     for i in range(NumImagesToShow):
         psnr = PSNR(xtest[i, :, :, :], decoded_imgs[i, :, :, :])
-        title = '%2.2f' % psnr
-        plt.subplot(4, NumImagesToShow, NumImagesToShow + i + 1).set_title(title, fontsize=10)
-        plt.imshow(decoded_imgs[i, :, :, :], interpolation='nearest')
+        title = "%2.2f" % psnr
+        plt.subplot(4, NumImagesToShow, NumImagesToShow + i + 1).set_title(
+            title, fontsize=10
+        )
+        plt.imshow(decoded_imgs[i, :, :, :], interpolation="nearest")
         plt.axis(False)
     for i in range(NumImagesToShow):
         psnr = PSNR(xtest[i, :, :, :], decoded_imgsQ[i, :, :, :])
-        title = '%2.2f %2.2f' % (psnr, bpp[i])
-        plt.subplot(4, NumImagesToShow, 2 * NumImagesToShow + i + 1).set_title(title, fontsize=10)
-        plt.imshow(decoded_imgsQ[i, :, :, :], interpolation='nearest')
+        title = "%2.2f %2.2f" % (psnr, bpp[i])
+        plt.subplot(4, NumImagesToShow, 2 * NumImagesToShow + i + 1).set_title(
+            title, fontsize=10
+        )
+        plt.imshow(decoded_imgsQ[i, :, :, :], interpolation="nearest")
         plt.axis(False)
     for i in range(NumImagesToShow):
-        JPEGQP, JPEGrealbpp, JPEGrealpsnr = JPEGRDSingleImage(xtest[i, :, :, :], bpp[i], i)
-        JPEGfilename = 'image%i.jpeg' % i
+        JPEGQP, JPEGrealbpp, JPEGrealpsnr = JPEGRDSingleImage(
+            xtest[i, :, :, :], bpp[i], i
+        )
+        JPEGfilename = "image%i.jpeg" % i
         JPEGimage = Image.open(JPEGfilename)
-        title = '%2.2f %2.2f' % (JPEGrealpsnr, JPEGrealbpp)
-        plt.subplot(4, NumImagesToShow, 3 * NumImagesToShow + i + 1).set_title(title, fontsize=10)
-        plt.imshow(JPEGimage, interpolation='nearest')
+        title = "%2.2f %2.2f" % (JPEGrealpsnr, JPEGrealbpp)
+        plt.subplot(4, NumImagesToShow, 3 * NumImagesToShow + i + 1).set_title(
+            title, fontsize=10
+        )
+        plt.imshow(JPEGimage, interpolation="nearest")
         plt.axis(False)
     plt.show()
