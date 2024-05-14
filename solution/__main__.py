@@ -5,14 +5,14 @@ import wandb
 
 from solution import config
 from solution.config import WANDB_PROJECT_NAME
-from solution.models.base_model import AutoEncoder
+from solution.models.base_auto_encoder_model import AutoEncoder
 from solution.models.stride_model import StrideAutoEncoder
 from solution.pipeline import training_pipeline
 
 
 if __name__ == "__main__":
     w, h = 128, 128
-    b = 3
+    b = 2
     device = (
         "mps"
         if torch.backends.mps.is_built()
@@ -40,16 +40,11 @@ if __name__ == "__main__":
         config={
             "learning_rate": config.LEARNING_RATE,
             "dataset": "itmo_image_codec_cars",
-            "epocs": config.EPOCHS,
+            "epochs": config.EPOCHS,
         },
-        name=f"{args.model_type}-b_{b}-lr_{config.LEARNING_RATE}",
+        name=f"{model.model_name}-b_{b}-lr_{config.LEARNING_RATE}",
     )
-
-    training_pipeline(
-        model=model,
-        device=device,
-        run=run,
-        b=b,
-        w=w,
-        h=h,
-    )
+    try:
+        training_pipeline(model=model, device=device, run=run, b=b, w=w, h=h)
+    finally:
+        wandb.finish()

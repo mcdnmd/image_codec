@@ -4,19 +4,22 @@ import torch.nn as nn
 from solution.models.base_model import BasePytorchModel
 
 
-class StrideAutoEncoder(BasePytorchModel):
-    """Model without max polling"""
+class AutoEncoder(BasePytorchModel):
+    """Baseline model"""
 
     def __init__(self):
-        super(StrideAutoEncoder, self).__init__(model_name="stride_auto_encoder")
+        super(AutoEncoder, self).__init__(model_name="simple_auto_encoder")
 
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 128, kernel_size=7, padding=3, stride=2),
+            nn.Conv2d(3, 128, kernel_size=7, padding=3),
             nn.ReLU(),
-            nn.Conv2d(128, 32, kernel_size=5, padding=2, stride=2),
+            nn.MaxPool2d(2),
+            nn.Conv2d(128, 32, kernel_size=5, padding=2),
             nn.ReLU(),
-            nn.Conv2d(32, 16, kernel_size=3, padding=1, stride=2),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 16, kernel_size=3, padding=1),
             nn.ReLU(),
+            nn.MaxPool2d(2),
         )
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(

@@ -1,7 +1,7 @@
 import pytest
 from torch.utils.data import DataLoader
 
-from solution.models.base_model import Encoder, Decoder, AutoEncoder
+from solution.models.base_auto_encoder_model import AutoEncoder
 from solution.models.some_model import BaseAutoEncoder
 from solution.utils import process_images
 
@@ -10,7 +10,7 @@ def test_encoder(first_image, to_tensor):
     first_image_tensor = to_tensor(first_image)
     assert first_image_tensor.shape == (3, 128, 128)
 
-    encoder = Encoder()
+    encoder = AutoEncoder().encoder
     result = encoder(first_image_tensor)
 
     assert result.shape == (16, 16, 16)
@@ -19,7 +19,7 @@ def test_encoder(first_image, to_tensor):
 def test_decoder(random_tensor):
     image = random_tensor(w=16, h=16, c=16)
 
-    decoder = Decoder()
+    decoder =  AutoEncoder().decoder
     result = decoder(image)
 
     assert result.shape == (3, 128, 128)

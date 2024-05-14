@@ -40,9 +40,7 @@ def JPEGRDSingleImage(torch_img, TargetBPP):
     return image_dec, realQ, realbpp, realpsnr
 
 
-def display_images_and_save_pdf(
-    test_dataset, imgs_decoded, imgsQ_decoded, bpp, filepath, NumImagesToShow=None
-):
+def display_images_and_save_pdf(test_dataset, imgs_decoded, imgsQ_decoded, bpp, filepath, NumImagesToShow=None):
     if NumImagesToShow is None:
         NumImagesToShow = len(test_dataset)
     cols = NumImagesToShow
