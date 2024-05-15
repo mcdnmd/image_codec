@@ -9,6 +9,7 @@ from tqdm import tqdm
 from torch import nn
 from torch.utils.data import DataLoader
 
+from solution import config
 from solution.entropy_model import entropy_decoder, entropy_encoder
 from solution.entropy_codec.CNNImageCodec import JPEGRDSingleImage
 from solution.metrics import PSNR_RGB, PSNR
@@ -97,7 +98,11 @@ def process_images(
     with torch.no_grad():
         for test_batch in tqdm(test_dataloader):
             test_batch = test_batch.to(device)
-            encoded_images = model.encoder(test_batch)
+            if model.model_name.startswith("vae"):
+                mu, logvar = model.encoder(test_batch)
+                encoded_images = model.reparameterize(mu, logvar)
+            else:
+                encoded_images = model.encoder(test_batch)
             decoded_images = model.decoder(encoded_images)
 
             imgs_encoded.append(encoded_images.cpu().detach())
@@ -106,7 +111,11 @@ def process_images(
     imgs_encoded = torch.vstack(imgs_encoded)
     imgs_decoded = torch.vstack(imgs_decoded)
 
-    max_encoded_imgs = imgs_encoded.amax(dim=(1, 2, 3), keepdim=True)
+    try:
+        max_encoded_imgs = imgs_encoded.amax(dim=(1, 2, 3), keepdim=True)
+    except IndexError:
+        imgs_encoded = imgs_encoded.reshape(shape=(imgs_encoded.shape[0], 8, 8, 2))
+        max_encoded_imgs = imgs_encoded.amax(dim=(1, 2, 3), keepdim=True)
     # Normalize and quantize
     norm_imgs_encoded = imgs_encoded / max_encoded_imgs
     quantized_imgs_encoded = (
@@ -144,8 +153,13 @@ def process_images(
     with torch.no_grad():
         for deq_img in dequantized_denorm_imgs_decoded:
             deq_img = deq_img.to(device)
-            decoded_imgQ = model.decoder(deq_img)
-
+            try:
+                decoded_imgQ = model.decoder(deq_img)
+            except RuntimeError:
+                deq_img = deq_img.view(-1)
+                assert deq_img.shape[0] == 128
+                decoded_imgQ = model.decoder(deq_img.reshape((1, 128)))
+                decoded_imgQ = decoded_imgQ.reshape((3, 128, 128))
             imgsQ_decoded.append(decoded_imgQ.cpu().detach())
 
     imgsQ_decoded = torch.stack(imgsQ_decoded)

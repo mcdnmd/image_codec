@@ -8,6 +8,8 @@
 
 * **Base model** - Модель с базовой реализацией
 * **Stride model** - Модель из котороый убран MaxPooling(2) для улучшения связи в свертках
+* **VAE model** - Вариационный автокодировщик (failed)
+* **ResidualBlock model** - Вариационный автокодировщик
 
 
 ## Что было сделано
@@ -77,10 +79,11 @@ __bootstrap__()
 from solution.entropy_codec.EntropyCodec import HiddenLayersEncoder, HiddenLayersDecoder
 ```
 
-Запуск кода бейзлайна необходимо 
+Запуск кода бейзлайна необходимо. Для запуска другой модели необходимо изменить параметр `model_type`
 ```shell
-make start_base
+make start model_type=base
 ```
+
 
 ## Проверка изменений в коде
 Запуск тестов для проверки размерности всех слоев в модели. 

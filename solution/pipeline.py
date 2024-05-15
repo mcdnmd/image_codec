@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -20,6 +22,7 @@ def is_val_epoch(epoch_num: int) -> bool:
 
 def training_pipeline(model: BasePytorchModel, device: str, run, b: int, w: int, h: int):
     logger.info("Start training pipeline")
+    os.makedirs(config.WEIGHTS_DIR / model.model_name, exist_ok=True)
 
     logger.info("Prepare train data utils")
     train_dataset = ImageDataset(config.DATASET_DIR / "train", image_transform)
@@ -45,8 +48,13 @@ def training_pipeline(model: BasePytorchModel, device: str, run, b: int, w: int,
 
             optimizer.zero_grad()
 
-            outputs = model(train_batch, b_t=b)
-            loss = nn.MSELoss()(outputs, train_batch)
+            if model.model_name.startswith('vae'):
+                outputs, mu, logvar = model(train_batch, b_t=b)
+                KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            else:
+                outputs = model(train_batch, b_t=b)
+                KLD = 0.0
+            loss = nn.MSELoss()(outputs, train_batch) + KLD
 
             run.log(
                 {"train/loss": loss, "epoch": epoch, "step": global_step_counter},
@@ -65,8 +73,13 @@ def training_pipeline(model: BasePytorchModel, device: str, run, b: int, w: int,
             with torch.no_grad():
                 for val_batch in tqdm(test_dataloader):
                     val_batch = val_batch.to(device)
-                    val_outputs = model(val_batch, b_t=b)
-                    val_loss += nn.MSELoss()(val_outputs, val_batch).item()
+                    if model.model_name.startswith('vae'):
+                        val_outputs, mu, logvar = model(val_batch, b_t=b)
+                        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+                    else:
+                        val_outputs = model(val_batch, b_t=b)
+                        KLD = 0.0
+                    val_loss += nn.MSELoss()(val_outputs, val_batch).item() + KLD
 
             val_loss /= len(test_dataloader)
 
@@ -75,7 +88,7 @@ def training_pipeline(model: BasePytorchModel, device: str, run, b: int, w: int,
             )
 
             fig, psnr_decoded, psnr_decoded_q, psnr_jpeg = display_images_and_save_pdf(
-                test_dataset, imgs_decoded, imgsQ_decoded, bpp, config.WEIGHTS_DIR / model.model_name/ "output.pdf"
+                test_dataset, imgs_decoded, imgsQ_decoded, bpp, config.WEIGHTS_DIR / model.model_name / "output.pdf"
             )
 
             run.log(

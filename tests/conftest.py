@@ -23,7 +23,7 @@ def first_image() -> Image:
 @pytest.fixture(scope="session")
 def dataset(first_image, to_tensor) -> Dataset:
     class DataSet(Dataset):
-        items = [first_image]
+        items = [first_image] * 64
 
         def __getitem__(self, index):
             return to_tensor(self.items[index])
